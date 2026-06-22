@@ -12,7 +12,22 @@ const REPULSION_FORCE = 6;    // how hard particles get pushed
 const SPRING = 0.08;          // return-to-origin spring strength
 const FRICTION = 0.82;        // velocity damping (lower = more bouncy)
 
-// Shape: diamond / flame silhouette drawn on an offscreen canvas
+// Rounded rect helper
+function roundRect(c, x, y, w, h, r) {
+  c.beginPath();
+  c.moveTo(x + r, y);
+  c.lineTo(x + w - r, y);
+  c.quadraticCurveTo(x + w, y, x + w, y + r);
+  c.lineTo(x + w, y + h - r);
+  c.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  c.lineTo(x + r, y + h);
+  c.quadraticCurveTo(x, y + h, x, y + h - r);
+  c.lineTo(x, y + r);
+  c.quadraticCurveTo(x, y, x + r, y);
+  c.closePath();
+}
+
+// Shape: Among Us crewmate silhouette
 function buildShapeImage(w, h) {
   const off = document.createElement('canvas');
   off.width = w;
@@ -21,28 +36,59 @@ function buildShapeImage(w, h) {
 
   c.fillStyle = '#fff';
 
-  // Outer diamond flame
+  // --- Body (main bean shape) ---
+  // Head region: full-width rounded top
+  // Body narrows slightly, ends in two legs
+  const bx = w * 0.18;  // body left edge
+  const bw = w * 0.62;  // body width
+  const headTop = h * 0.02;
+  const headBot = h * 0.52;
+  const bodyBot = h * 0.78;
+  const br = bw * 0.5;  // head radius
+
+  // Full body silhouette via bezier
   c.beginPath();
-  c.moveTo(w * 0.5,  h * 0.02);
-  c.bezierCurveTo(w * 0.72, h * 0.18,  w * 0.78, h * 0.38,  w * 0.68, h * 0.52);
-  c.bezierCurveTo(w * 0.62, h * 0.60,  w * 0.70, h * 0.68,  w * 0.60, h * 0.75);
-  c.bezierCurveTo(w * 0.55, h * 0.80,  w * 0.58, h * 0.88,  w * 0.50, h * 0.98);
-  c.bezierCurveTo(w * 0.42, h * 0.88,  w * 0.45, h * 0.80,  w * 0.40, h * 0.75);
-  c.bezierCurveTo(w * 0.30, h * 0.68,  w * 0.38, h * 0.60,  w * 0.32, h * 0.52);
-  c.bezierCurveTo(w * 0.22, h * 0.38,  w * 0.28, h * 0.18,  w * 0.50, h * 0.02);
+  // top-left of head
+  c.moveTo(bx + br, headTop);
+  // top arc
+  c.arc(bx + br, headTop + br, br, -Math.PI / 2, Math.PI, true);
+  // left side down
+  c.lineTo(bx, bodyBot);
+  // left leg bottom
+  c.quadraticCurveTo(bx,        bodyBot + h * 0.12, bx + w * 0.08,  bodyBot + h * 0.12);
+  c.lineTo(bx + w * 0.30, bodyBot + h * 0.12);
+  c.quadraticCurveTo(bx + w * 0.36, bodyBot + h * 0.12, bx + w * 0.36, bodyBot);
+  // gap between legs
+  c.lineTo(bx + w * 0.36, bodyBot - h * 0.04);
+  c.lineTo(bx + w * 0.44, bodyBot - h * 0.04);
+  c.lineTo(bx + w * 0.44, bodyBot);
+  // right leg bottom
+  c.quadraticCurveTo(bx + w * 0.44, bodyBot + h * 0.12, bx + w * 0.52, bodyBot + h * 0.12);
+  c.lineTo(bx + bw - w * 0.08, bodyBot + h * 0.12);
+  c.quadraticCurveTo(bx + bw, bodyBot + h * 0.12, bx + bw, bodyBot);
+  // right side up
+  c.lineTo(bx + bw, headTop + br);
+  // close top-right arc handled by moveTo logic
+  c.arc(bx + br, headTop + br, br, 0, -Math.PI / 2, true);
   c.closePath();
   c.fill();
 
-  // Inner diamond cutout (for the eye / gem shape)
+  // --- Backpack (right side) ---
+  c.fillStyle = '#fff';
+  const pkX = bx + bw - w * 0.01;
+  const pkY = h * 0.40;
+  const pkW = w * 0.18;
+  const pkH = h * 0.28;
+  roundRect(c, pkX, pkY, pkW, pkH, pkW * 0.3);
+  c.fill();
+
+  // --- Visor cutout ---
   c.globalCompositeOperation = 'destination-out';
-  const cx = w * 0.5, cy = h * 0.44;
-  const rx = w * 0.10, ry = h * 0.08;
-  c.beginPath();
-  c.moveTo(cx,        cy - ry);
-  c.lineTo(cx + rx,   cy);
-  c.lineTo(cx,        cy + ry);
-  c.lineTo(cx - rx,   cy);
-  c.closePath();
+  const vx = bx + w * 0.06;
+  const vy = h * 0.10;
+  const vw = bw * 0.72;
+  const vh = h * 0.22;
+  roundRect(c, vx, vy, vw, vh, vh * 0.45);
   c.fill();
   c.globalCompositeOperation = 'source-over';
 
@@ -76,8 +122,8 @@ function createParticles(shapeW, shapeH, offsetX, offsetY) {
   return particles;
 }
 
-const SHAPE_W = Math.min(W * 0.36, 320);
-const SHAPE_H = SHAPE_W * 1.55;
+const SHAPE_W = Math.min(W * 0.38, 340);
+const SHAPE_H = SHAPE_W * 1.35;
 const OX = (W - SHAPE_W) / 2;
 const OY = (H - SHAPE_H) / 2;
 
